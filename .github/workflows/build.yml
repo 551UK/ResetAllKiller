@@ -1,0 +1,48 @@
+name: Build ResetAllKiller (rootless)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        uses: Randomblock1/theos-action@v1
+
+      - name: Install build tools
+        run: |
+          brew install ldid dpkg make
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+
+      - name: Build rootless .deb
+        env:
+          THEOS: ${{ github.workspace }}/theos
+        run: |
+          make clean package FINALPACKAGE=1
+          ls -l packages/*.deb
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ResetAllKiller-rootless
+          path: packages/*.deb
+          if-no-files-found: error
+
+      - name: Publish single release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: ResetAllKiller v1.0.0
+          files: packages/*.deb
+          fail_on_unmatched_files: true
+          make_latest: true
